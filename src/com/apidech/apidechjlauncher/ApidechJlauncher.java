@@ -7,12 +7,19 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 
 import javax.swing.JOptionPane;
 
+/**
+ * Idea by Apidech, need this to run desktop app. like AverstCore in desktop mode,
+ * Don't need console for that. can define -Xmx flag and other
+ * 
+ * Mostly code by ChatGPT o4-mini-high
+ * Started project on 24/5/2025 02:40
+ * 
+ */
 public class ApidechJlauncher {
 	
 	private static final String CONFIG_FILE = "launcher.ini";
@@ -51,31 +58,24 @@ public class ApidechJlauncher {
 
     /**
      * Determine the directory where the JAR is located.
-     * Tries to use the jar path from java.class.path (which preserves symlink path if launched via -jar).
-     * Falls back to code source location or current directory.
      */
     private static File getBaseDirectory() {
-        // 1. Try system property java.class.path
+        // Attempt via java.class.path preserving symlink path
         String cp = System.getProperty("java.class.path", "");
         if (cp != null) {
             String[] entries = cp.split(File.pathSeparator);
-            if (entries.length > 0) {
-                String first = entries[0];
-                if (first.toLowerCase().endsWith(".jar")) {
-                    File jar = new File(first);
-                    if (!jar.isAbsolute()) {
-                        jar = new File(System.getProperty("user.dir", "."), first);
-                    }
-                    if (jar.exists()) {
-                        File dir = jar.getAbsoluteFile().getParentFile();
-                        if (dir != null) {
-                            return dir;
-                        }
-                    }
+            if (entries.length > 0 && entries[0].toLowerCase().endsWith(".jar")) {
+                File jar = new File(entries[0]);
+                if (!jar.isAbsolute()) {
+                    jar = new File(System.getProperty("user.dir", "."), entries[0]);
+                }
+                if (jar.exists()) {
+                    File dir = jar.getAbsoluteFile().getParentFile();
+                    if (dir != null) return dir;
                 }
             }
         }
-        // 2. Fallback to code source URL
+        // Fallback to code source
         try {
             File jarFile = new File(ApidechJlauncher.class
                 .getProtectionDomain()
@@ -83,13 +83,10 @@ public class ApidechJlauncher {
                 .getLocation()
                 .toURI());
             File dir = jarFile.getParentFile();
-            if (dir != null) {
-                return dir;
-            }
-        } catch (URISyntaxException e) {
-            // ignore
+            if (dir != null) return dir;
+        } catch (URISyntaxException ignored) {
         }
-        // 3. Fallback to working directory
+        // Fallback to working directory
         return new File(System.getProperty("user.dir", "."));
     }
 
@@ -99,7 +96,7 @@ public class ApidechJlauncher {
 
         String opts = cfg.getProperty("javaOptions", "").trim();
         if (!opts.isEmpty()) {
-            cmd.addAll(Arrays.asList(opts.split("\\s+")));
+            cmd.addAll(tokenize(opts));
         }
 
         cmd.add("-jar");
@@ -107,12 +104,15 @@ public class ApidechJlauncher {
 
         String appArgs = cfg.getProperty("appArgs", "<your args here>").trim();
         if (!appArgs.isEmpty()) {
-            cmd.addAll(Arrays.asList(appArgs.split("\\s+")));
+            cmd.addAll(tokenize(appArgs));
         }
 
         return cmd;
     }
 
+    /**
+     * Launches the process in the base directory
+     */
     private static int launchProcess(List<String> cmd) throws IOException, InterruptedException {
         ProcessBuilder pb = new ProcessBuilder(cmd)
             .directory(getBaseDirectory())
@@ -121,28 +121,58 @@ public class ApidechJlauncher {
         return p.waitFor();
     }
 
+    /**
+     * Logs messages via JOptionPane in GUI mode or console otherwise.
+     */
     private static void log(String title, String message, int type) {
         if (GraphicsEnvironment.isHeadless()) {
-            if (type == JOptionPane.ERROR_MESSAGE) {
-                System.err.println(title + ": " + message);
-            } else {
-                System.out.println(title + ": " + message);
-            }
+            if (type == JOptionPane.ERROR_MESSAGE) System.err.println(title + ": " + message);
+            else System.out.println(title + ": " + message);
         } else {
             JOptionPane.showMessageDialog(null, message, title, type);
         }
     }
 
+    /**
+     * Create default configuration file
+     */
     private static void createDefaultConfig(Properties cfg, File ini) {
         cfg.setProperty("javaExecutable", "java");
         cfg.setProperty("javaOptions", "-Xmx512m");
         cfg.setProperty("appJar", "app.jar");
         cfg.setProperty("appArgs", "<your args here>");
-
         try (FileWriter writer = new FileWriter(ini)) {
             cfg.store(writer, "ApidechJlauncher configuration (edit values as needed)");
         } catch (IOException e) {
             log("File Error", "Unable to write default config: " + e.getMessage(), JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    /**
+     * Splits a command-line string into tokens, honoring quotes
+     */
+    private static List<String> tokenize(String str) {
+        List<String> tokens = new ArrayList<>();
+        StringBuilder buf = new StringBuilder();
+        boolean inQuote = false;
+        char quoteChar = 0;
+        for (int i = 0; i < str.length(); i++) {
+            char c = str.charAt(i);
+            if (inQuote) {
+                if (c == quoteChar) inQuote = false;
+                else buf.append(c);
+            } else {
+                if (c == '"' || c == '\'') {
+                    inQuote = true;
+                    quoteChar = c;
+                } else if (Character.isWhitespace(c)) {
+                    if (buf.length() > 0) {
+                        tokens.add(buf.toString()); buf.setLength(0);
+                    }
+                } else buf.append(c);
+            }
+        }
+        if (buf.length() > 0) tokens.add(buf.toString());
+        return tokens;
     }
 }
