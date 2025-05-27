@@ -28,5 +28,19 @@
         </configuration>
       </plugin>
     </plugins>
+    <resources>
+		<!-- Define resource directory -->
+		<resource>
+			<directory>src</directory> <!-- Your resources are directly under
+			src -->
+			<includes>
+				<include>**/*.*</include> <!-- Include all files with extensions -->
+			</includes>
+			<!-- Exclude source files to avoid duplication -->
+			<excludes>
+				<exclude>**/*.java</exclude>
+			</excludes>
+		</resource>
+	</resources>
   </build>
 </project>
