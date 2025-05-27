@@ -47,25 +47,31 @@ public class ApidechJlauncher {
             System.exit(1);
         }
 
-        // Splash screen handling
+        // Read splash settings
         boolean showSplash = Boolean.parseBoolean(cfg.getProperty("showSplash", "true"));
-        int splashDuration = 10;
+        int splashDuration = parseInt(cfg.getProperty("splashDuration", "8"), 8);
+
+        // Build command
+        List<String> cmd = buildCommand(cfg);
+
+        // Launch target app in background
         try {
-            splashDuration = Integer.parseInt(cfg.getProperty("splashDuration", "10"));
-        } catch (NumberFormatException ignored) {}
+            new ProcessBuilder(cmd)
+                .directory(baseDir)
+                .inheritIO()
+                .start();
+        } catch (IOException e) {
+            log("Launch Error", "Failed to start target app: " + e.getMessage(), JOptionPane.ERROR_MESSAGE);
+            System.exit(2);
+        }
+
+        // Show splash screen if requested
         if (showSplash && !GraphicsEnvironment.isHeadless()) {
             showSplashScreen(splashDuration);
         }
 
-        // Build and launch
-        List<String> cmd = buildCommand(cfg);
-        try {
-            int exitCode = launchProcess(cmd, baseDir);
-            System.exit(exitCode);
-        } catch (IOException | InterruptedException e) {
-            log("Launch Error", "Failed to launch target app: " + e.getMessage(), JOptionPane.ERROR_MESSAGE);
-            System.exit(2);
-        }
+        // Exit launcher immediately
+        System.exit(0);
     }
 
     private static void showSplashScreen(int seconds) {
@@ -81,12 +87,12 @@ public class ApidechJlauncher {
             splash.setLocationRelativeTo(null);
             splash.setVisible(true);
 
-            // Close after duration
+            // Close after duration using Swing Timer
             new Timer(seconds * 1000, evt -> splash.dispose()).start();
 
             // Block to keep splash visible
             try {
-                Thread.sleep((long) seconds * 1000);
+                Thread.sleep(seconds * 1000L);
             } catch (InterruptedException ignored) {}
         }
     }
@@ -111,14 +117,6 @@ public class ApidechJlauncher {
         return cmd;
     }
 
-    private static int launchProcess(List<String> cmd, File dir) throws IOException, InterruptedException {
-        ProcessBuilder pb = new ProcessBuilder(cmd)
-            .directory(dir)
-            .inheritIO();
-        Process p = pb.start();
-        return p.waitFor();
-    }
-
     private static void log(String title, String message, int type) {
         if (GraphicsEnvironment.isHeadless()) {
             if (type == JOptionPane.ERROR_MESSAGE) System.err.println(title + ": " + message);
@@ -134,7 +132,7 @@ public class ApidechJlauncher {
         cfg.setProperty("appJar", "app.jar");
         cfg.setProperty("appArgs", "<your args here>");
         cfg.setProperty("showSplash", "true");
-        cfg.setProperty("splashDuration", "15");
+        cfg.setProperty("splashDuration", "8");
 
         try (FileWriter writer = new FileWriter(ini)) {
             cfg.store(writer, "ApidechJlauncher configuration (edit values as needed)");
@@ -144,6 +142,7 @@ public class ApidechJlauncher {
     }
 
     private static File getBaseDirectory() {
+        // Attempt via java.class.path preserving symlink
         String cp = System.getProperty("java.class.path", "");
         if (cp != null) {
             String[] entries = cp.split(File.pathSeparator);
@@ -156,6 +155,7 @@ public class ApidechJlauncher {
                 }
             }
         }
+        // Fallback to code source
         try {
             File jarFile = new File(ApidechJlauncher.class
                 .getProtectionDomain()
@@ -165,6 +165,7 @@ public class ApidechJlauncher {
             File dir = jarFile.getParentFile();
             if (dir != null) return dir;
         } catch (URISyntaxException ignored) {}
+        // Fallback to working dir
         return new File(System.getProperty("user.dir", "."));
     }
 
@@ -193,5 +194,8 @@ public class ApidechJlauncher {
         if (buf.length() > 0) tokens.add(buf.toString());
         return tokens;
     }
-}
 
+    private static int parseInt(String s, int def) {
+        try { return Integer.parseInt(s); } catch (NumberFormatException e) { return def; }
+    }
+}
