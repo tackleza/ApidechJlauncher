@@ -1,5 +1,8 @@
 # ApidechJlauncher
 
+![Splash Image](https://raw.githubusercontent.com/tackleza/ApidechJlauncher/refs/heads/master/src/com/apidech/apidechjlauncher/resources/splash.jpg)
+
+
 **Lightweight Java Application Launcher**
 
 ApidechJlauncher is a standalone, cross-platform Java launcher designed to start Java applications with custom JVM options (e.g. `-Xmx`) and application arguments. It optionally displays a splash screen before exiting, running the target application in the background.
