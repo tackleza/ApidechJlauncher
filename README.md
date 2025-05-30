@@ -83,10 +83,10 @@ splashDuration=10
 
 ```bash
 # First run: generates launcher.ini and exits
-java -jar apidech-jlauncher-1.0.0.jar
+java -jar apidechjlauncher-0.0.1-SNAPSHOT.jar
 
 # After configuring launcher.ini, run:
-java -jar apidech-jlauncher-1.0.0.jar
+java -jar apidechjlauncher-0.0.1-SNAPSHOT.jar
 ```
 
 On Windows, double-clicking the JAR will also work (if `.jar` files are associated with Java).
